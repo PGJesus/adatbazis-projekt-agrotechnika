@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Recurse \"c:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\adatbazis-projekt-agrotechnika\\\\agro_app\" | ForEach-Object { $_.FullName.Replace\\(\"c:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\adatbazis-projekt-agrotechnika\\\\\", \"\"\\) })"
+    ]
+  }
+}
