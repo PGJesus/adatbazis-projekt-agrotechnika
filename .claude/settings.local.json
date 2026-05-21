@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(Get-ChildItem -Recurse \"c:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\adatbazis-projekt-agrotechnika\\\\agro_app\" | ForEach-Object { $_.FullName.Replace\\(\"c:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\adatbazis-projekt-agrotechnika\\\\\", \"\"\\) })"
+      "PowerShell(Get-ChildItem -Recurse \"c:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\adatbazis-projekt-agrotechnika\\\\agro_app\" | ForEach-Object { $_.FullName.Replace\\(\"c:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\adatbazis-projekt-agrotechnika\\\\\", \"\"\\) })",
+      "Bash(python -)",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import sys; sys.stdout.buffer.write\\(sys.stdin.buffer.read\\(\\)\\)\")"
     ]
   }
 }
