@@ -9,7 +9,7 @@ from PyQt6.QtCore import (
     QStringListModel,
     Qt,
 )
-from PyQt6.QtGui import QBrush, QColor
+from PyQt6.QtGui import QBrush, QColor, QFont
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -42,6 +42,44 @@ from felulet.stilus import betoltes, tokenek
 from logika.beallitasok import beallitasok_betolt, beallitasok_ment
 from logika.gazdalkodo_logika import keres, osszes
 from logika.ket_logika import Allapot, aktualis_ablak_vege, _honap_marad
+
+
+class KattinthatoTablazat(QTableWidget):
+    """QTableWidget mutatóujj-kurzorral és hoverre váltó nyíl-oszloppal."""
+
+    def __init__(self, tema: str) -> None:
+        super().__init__()
+        self.tema = tema
+        self._hovert_sor = -1
+        self.setMouseTracking(True)
+
+    def mouseMoveEvent(self, event) -> None:
+        index = self.indexAt(event.pos())
+        uj_sor = index.row() if index.isValid() else -1
+        if uj_sor != self._hovert_sor:
+            self._chevron_szin(self._hovert_sor, False)
+            self._hovert_sor = uj_sor
+            self._chevron_szin(self._hovert_sor, True)
+        self.setCursor(
+            Qt.CursorShape.PointingHandCursor if uj_sor >= 0
+            else Qt.CursorShape.ArrowCursor
+        )
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self._chevron_szin(self._hovert_sor, False)
+        self._hovert_sor = -1
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        super().leaveEvent(event)
+
+    def _chevron_szin(self, sor: int, hovert: bool) -> None:
+        if sor < 0 or sor >= self.rowCount():
+            return
+        elem = self.item(sor, self.columnCount() - 1)
+        if elem is None:
+            return
+        tok = tokenek(self.tema)
+        elem.setForeground(QBrush(QColor(tok['TEXT0'] if hovert else tok['TEXT2'])))
 
 
 _ALLAPOT_PRIORITAS: dict[Allapot, int] = {
@@ -100,12 +138,12 @@ class Oldalsav(QFrame):
 
         self._elvalaszto_felep(fo)
 
-        self._sor_felep(fo, '↑', 'Importálás', self._fo._import_megnyit)
-        self._sor_felep(fo, '↓', 'Exportálás', self._fo._export_megnyit)
+        self._sor_felep(fo, '↑', 'Importálás', self._fo._import_megnyit, akcios=True)
+        self._sor_felep(fo, '↓', 'Exportálás', self._fo._export_megnyit, akcios=True)
 
         self._elvalaszto_felep(fo)
 
-        self._sor_felep(fo, '⚙', 'Beállítások', self._fo._beallitasok_megnyit)
+        self._sor_felep(fo, '⚙', 'Beállítások', self._fo._beallitasok_megnyit, akcios=True)
 
         fo.addStretch()
 
@@ -113,7 +151,7 @@ class Oldalsav(QFrame):
         self._tema_gomb = self._gomb_letrehoz('☀', self._fo._tema_valtas)
         self._tema_gomb.setObjectName('nav_elem')
         self._tema_cimke = QLabel(self._tema_felirat())
-        self._tema_cimke.setStyleSheet('color: inherit; background: transparent; font-size: 10pt;')
+        self._tema_cimke.setStyleSheet('background: transparent; font-size: 10pt;')
 
         tema_sor = QHBoxLayout()
         tema_sor.setSpacing(10)
@@ -124,7 +162,7 @@ class Oldalsav(QFrame):
         self._becsuk_gomb = self._gomb_letrehoz('‹', self._osszecsukas_kapcsol)
         self._becsuk_gomb.setObjectName('nav_elem')
         self._becsuk_cimke = QLabel('Összecsukás')
-        self._becsuk_cimke.setStyleSheet('color: inherit; background: transparent; font-size: 10pt;')
+        self._becsuk_cimke.setStyleSheet('background: transparent; font-size: 10pt;')
 
         becsuk_sor = QHBoxLayout()
         becsuk_sor.setSpacing(10)
@@ -147,24 +185,29 @@ class Oldalsav(QFrame):
         g = QPushButton(ikon)
         g.setFixedSize(36, 40)
         g.setCheckable(False)
+        g.setCursor(Qt.CursorShape.PointingHandCursor)
         g.clicked.connect(slot)
         return g
 
-    def _sor_felep(self, fo: QVBoxLayout, ikon: str, felirat: str, slot, checked: bool = False) -> None:
+    def _sor_felep(
+        self, fo: QVBoxLayout, ikon: str, felirat: str, slot,
+        checked: bool = False, akcios: bool = False,
+    ) -> None:
         sor = QHBoxLayout()
         sor.setSpacing(10)
         sor.setContentsMargins(0, 0, 0, 0)
 
         gomb = QPushButton(ikon)
-        gomb.setObjectName('nav_elem')
+        gomb.setObjectName('nav_akcios' if akcios else 'nav_elem')
         gomb.setFixedSize(36, 40)
-        gomb.setCheckable(True)
+        gomb.setCheckable(not akcios)
         gomb.setChecked(checked)
         gomb.setToolTip(felirat)
+        gomb.setCursor(Qt.CursorShape.PointingHandCursor)
         gomb.clicked.connect(lambda _, s=slot: self._nav_kattintva(s))
 
         cimke = QLabel(felirat)
-        cimke.setStyleSheet('color: inherit; background: transparent; font-size: 10pt;')
+        cimke.setStyleSheet('background: transparent; font-size: 10pt;')
 
         sor.addWidget(gomb)
         sor.addWidget(cimke, stretch=1)
@@ -328,6 +371,7 @@ class FoAblak(QMainWindow):
             g.setCheckable(True)
             g.setChecked(azon == 0)
             g.setProperty('szuro_allapot', allapot_str)
+            g.setCursor(Qt.CursorShape.PointingHandCursor)
             self._szuro_csoport.addButton(g, azon)
             szuro_sor.addWidget(g)
         szuro_sor.addStretch()
@@ -335,10 +379,10 @@ class FoAblak(QMainWindow):
         fo.addLayout(szuro_sor)
 
         # ── Táblázat ──
-        self._tabla = QTableWidget()
-        self._tabla.setColumnCount(4)
+        self._tabla = KattinthatoTablazat(self._tema)
+        self._tabla.setColumnCount(5)
         self._tabla.setHorizontalHeaderLabels(
-            ['Gazdálkodó neve', 'Tám. azonosító', 'Haladás', 'Állapot']
+            ['Gazdálkodó neve', 'Tám. azonosító', 'Haladás', 'Állapot', '']
         )
         hh = self._tabla.horizontalHeader()
         hh.setStretchLastSection(False)
@@ -346,9 +390,11 @@ class FoAblak(QMainWindow):
         hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        hh.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self._tabla.setColumnWidth(1, 140)
         self._tabla.setColumnWidth(2, 100)
         self._tabla.setColumnWidth(3, 160)
+        self._tabla.setColumnWidth(4, 32)
         self._tabla.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._tabla.setSortingEnabled(True)
@@ -374,7 +420,7 @@ class FoAblak(QMainWindow):
 
         ertek_lab = QLabel(ertek)
         ertek_lab.setStyleSheet(
-            'font-size: 20pt; font-weight: 600; background: transparent; color: inherit;'
+            'font-size: 20pt; font-weight: 600; background: transparent;'
         )
 
         el.addWidget(cimke_lab)
@@ -498,6 +544,7 @@ class FoAblak(QMainWindow):
     # ── Táblázat frissítése ───────────────────────────────────────────────────
 
     def _frissit_tabla(self) -> None:
+        self._tabla.tema = self._tema
         szoveg = self._kereses_szoveg.lower()
 
         szurt: list[dict] = []
@@ -545,6 +592,16 @@ class FoAblak(QMainWindow):
 
             jelveny = Jelveny(adat['legrosszabb_allapot'])
             self._tabla.setCellWidget(sor, 3, self._jelveny_kozepre(jelveny))
+
+            tok = tokenek(self._tema)
+            chevron = QTableWidgetItem('›')
+            chevron.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
+            chevron.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            f = QFont()
+            f.setPointSize(12)
+            chevron.setFont(f)
+            chevron.setForeground(QBrush(QColor(tok['TEXT2'])))
+            self._tabla.setItem(sor, 4, chevron)
 
         self._tabla.setSortingEnabled(True)
 

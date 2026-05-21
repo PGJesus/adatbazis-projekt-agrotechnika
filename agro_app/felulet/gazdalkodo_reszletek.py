@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QModelIndex, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QFont
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QFrame,
@@ -16,8 +17,47 @@ from PyQt6.QtWidgets import (
 from sqlalchemy.orm import Session
 
 from felulet.jelveny import Jelveny
+from felulet.stilus import tokenek
 from logika.gazdalkodo_logika import egy
 from logika.ket_logika import Allapot, allapot, haladas
+
+
+class KattinthatoTablazat(QTableWidget):
+    """QTableWidget mutatóujj-kurzorral és hoverre váltó nyíl-oszloppal."""
+
+    def __init__(self, tema: str) -> None:
+        super().__init__()
+        self.tema = tema
+        self._hovert_sor = -1
+        self.setMouseTracking(True)
+
+    def mouseMoveEvent(self, event) -> None:
+        index = self.indexAt(event.pos())
+        uj_sor = index.row() if index.isValid() else -1
+        if uj_sor != self._hovert_sor:
+            self._chevron_szin(self._hovert_sor, False)
+            self._hovert_sor = uj_sor
+            self._chevron_szin(self._hovert_sor, True)
+        self.setCursor(
+            Qt.CursorShape.PointingHandCursor if uj_sor >= 0
+            else Qt.CursorShape.ArrowCursor
+        )
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self._chevron_szin(self._hovert_sor, False)
+        self._hovert_sor = -1
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        super().leaveEvent(event)
+
+    def _chevron_szin(self, sor: int, hovert: bool) -> None:
+        if sor < 0 or sor >= self.rowCount():
+            return
+        elem = self.item(sor, self.columnCount() - 1)
+        if elem is None:
+            return
+        tok = tokenek(self.tema)
+        elem.setForeground(QBrush(QColor(tok['TEXT0'] if hovert else tok['TEXT2'])))
 
 
 class GazdalkodoReszletek(QWidget):
@@ -48,6 +88,7 @@ class GazdalkodoReszletek(QWidget):
         vissza_sor = QHBoxLayout()
         vissza_gomb = QPushButton('← Vissza')
         vissza_gomb.setFixedWidth(120)
+        vissza_gomb.setCursor(Qt.CursorShape.PointingHandCursor)
         vissza_gomb.clicked.connect(lambda: self.vissza.emit())
         vissza_sor.addWidget(vissza_gomb)
         vissza_sor.addStretch()
@@ -64,16 +105,18 @@ class GazdalkodoReszletek(QWidget):
         ket_cim.setObjectName('szekció_cim')
         fo.addWidget(ket_cim)
 
-        self._ket_tabla = QTableWidget()
-        self._ket_tabla.setColumnCount(4)
+        self._ket_tabla = KattinthatoTablazat(self._tema)
+        self._ket_tabla.setColumnCount(5)
         self._ket_tabla.setHorizontalHeaderLabels(
-            ['KET azonosító', 'Terület (ha)', 'Haladás', 'Állapot']
+            ['KET azonosító', 'Terület (ha)', 'Haladás', 'Állapot', '']
         )
         hh = self._ket_tabla.horizontalHeader()
         hh.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        hh.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        self._ket_tabla.setColumnWidth(4, 32)
         self._ket_tabla.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._ket_tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._ket_tabla.verticalHeader().setVisible(False)
@@ -117,6 +160,7 @@ class GazdalkodoReszletek(QWidget):
         self._email_cimke.setText(f'E-mail: {gazd.email or "—"}')
         self._ta_cimke.setText(f'Támogatási azonosító: {gazd.tamogatasi_azonosito}')
 
+        self._ket_tabla.tema = self._tema
         self._ket_tabla.setSortingEnabled(False)
         self._ket_tabla.setRowCount(0)
 
@@ -150,6 +194,16 @@ class GazdalkodoReszletek(QWidget):
 
             jelveny = Jelveny(all_enum)
             self._ket_tabla.setCellWidget(sor, 3, self._jelveny_kozepre(jelveny))
+
+            tok = tokenek(self._tema)
+            chevron = QTableWidgetItem('›')
+            chevron.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
+            chevron.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            f = QFont()
+            f.setPointSize(12)
+            chevron.setFont(f)
+            chevron.setForeground(QBrush(QColor(tok['TEXT2'])))
+            self._ket_tabla.setItem(sor, 4, chevron)
 
         self._ket_tabla.setSortingEnabled(True)
 

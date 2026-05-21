@@ -17,7 +17,7 @@ def _tokenek(tema: str) -> dict[str, str]:
             'TEXT2':         '#71717A',
             'AKCENT':        '#4A7C59',
             'AK_HOVER':      '#5E9170',
-            'AK_TINT':       'rgba(74,124,89,0.10)',
+            'AK_TINT':       'rgba(74,124,89,26)',
             'SARGA':         '#B8860B',
             'PIROS':         '#C0392B',
             'SZANKCIO_BG':   '#6B1A1A',
@@ -35,7 +35,7 @@ def _tokenek(tema: str) -> dict[str, str]:
         'TEXT2':         '#71717A',
         'AKCENT':        '#3D6649',
         'AK_HOVER':      '#2F5039',
-        'AK_TINT':       'rgba(61,102,73,0.08)',
+        'AK_TINT':       'rgba(61,102,73,20)',
         'SARGA':         '#B8860B',
         'PIROS':         '#C0392B',
         'SZANKCIO_BG':   '#6B1A1A',
@@ -89,7 +89,7 @@ QLabel#info_cimke {
     font-size: 8pt;
     font-weight: 500;
     color: @TEXT2@;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
 }
 QLabel#info_ertek {
     font-size: 11pt;
@@ -99,7 +99,7 @@ QLabel#info_ertek {
 
 /* ── Gombok — alap (ghost) ── */
 QPushButton {
-    background-color: transparent;
+    background-color: @BG2@;
     color: @TEXT0@;
     border: 1px solid @KERET@;
     border-radius: 6px;
@@ -110,7 +110,8 @@ QPushButton {
     max-height: 36px;
 }
 QPushButton:hover {
-    background-color: @BG2@;
+    background-color: @BG3@;
+    border-color: @KERET_EROS@;
     color: @TEXT0@;
 }
 QPushButton:pressed {
@@ -153,20 +154,28 @@ QPushButton#teljesit_gomb:hover {
 
 /* ── Szűrő chip gombok ── */
 QPushButton#szuro {
-    border-radius: 20px;
-    padding: 4px 16px;
+    background-color: @BG3@;
+    border: 1px solid @KERET_EROS@;
+    border-radius: 6px;
+    padding: 6px 14px;
     font-size: 9pt;
-    min-height: 28px;
-    max-height: 28px;
+    font-weight: 500;
+    color: @TEXT0@;
+    min-height: 32px;
+    max-height: 32px;
+}
+QPushButton#szuro:hover {
+    background-color: @BG2@;
+    border: 1px solid @KERET_EROS@;
 }
 QPushButton#szuro:checked {
     background-color: @AKCENT@;
-    border-color: @AKCENT@;
+    border: none;
     color: #FFFFFF;
 }
 QPushButton#szuro:checked:hover {
     background-color: @AK_HOVER@;
-    border-color: @AK_HOVER@;
+    border: none;
     color: #FFFFFF;
 }
 
@@ -186,7 +195,7 @@ QFrame#oldalsav_elvalaszto {
 /* ── Navigációs elem ── */
 QPushButton#nav_elem {
     background-color: transparent;
-    color: @TEXT1@;
+    color: @TEXT0@;
     border: none;
     border-radius: 6px;
     padding: 0px 12px;
@@ -205,6 +214,25 @@ QPushButton#nav_elem:checked {
     color: @AKCENT@;
     border-left: 2px solid @AKCENT@;
     font-weight: 500;
+}
+
+/* ── Oldalsáv akciógomb (Import / Export / Beállítások) ── */
+QPushButton#nav_akcios {
+    background-color: @BG2@;
+    color: @TEXT0@;
+    border: 1px solid @KERET@;
+    border-radius: 6px;
+    padding: 0px 12px;
+    text-align: left;
+    font-size: 10pt;
+    font-weight: 400;
+    min-height: 40px;
+    max-height: 40px;
+}
+QPushButton#nav_akcios:hover {
+    background-color: @BG3@;
+    border-color: @KERET_EROS@;
+    color: @TEXT0@;
 }
 
 /* ── Felső sáv ── */
@@ -244,7 +272,6 @@ QTableWidget {
     border: none;
     gridline-color: @KERET@;
     font-size: 10pt;
-    outline: none;
     alternate-background-color: @BG0@;
     show-decoration-selected: 0;
 }
@@ -258,7 +285,7 @@ QTableWidget::item:selected {
     color: @TEXT0@;
 }
 QTableWidget::item:focus {
-    outline: none;
+    border: none;
 }
 QTableWidget::item:hover {
     background-color: @BG2@;
@@ -320,7 +347,6 @@ QAbstractItemView {
     border: 1px solid @KERET@;
     selection-background-color: @AK_TINT@;
     selection-color: @TEXT0@;
-    outline: none;
 }
 
 /* ── Legördülő lista ── */
@@ -343,7 +369,6 @@ QComboBox QAbstractItemView {
     border: 1px solid @KERET@;
     selection-background-color: @AK_TINT@;
     selection-color: @TEXT0@;
-    outline: none;
 }
 
 /* ── Párbeszédablak ── */

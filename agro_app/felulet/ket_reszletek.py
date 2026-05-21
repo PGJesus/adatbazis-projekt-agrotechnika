@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
@@ -14,6 +14,26 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+
+class KattinthatoRacs(QTableWidget):
+    """QTableWidget mutatóujj-kurzorral cellák felett."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setMouseTracking(True)
+
+    def mouseMoveEvent(self, event) -> None:
+        index = self.indexAt(event.pos())
+        self.setCursor(
+            Qt.CursorShape.PointingHandCursor if index.isValid()
+            else Qt.CursorShape.ArrowCursor
+        )
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        super().leaveEvent(event)
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -57,6 +77,7 @@ class KetReszletek(QWidget):
         vissza_sor = QHBoxLayout()
         vissza_gomb = QPushButton('← Vissza')
         vissza_gomb.setFixedWidth(120)
+        vissza_gomb.setCursor(Qt.CursorShape.PointingHandCursor)
         vissza_gomb.clicked.connect(lambda: self.vissza.emit())
         vissza_sor.addWidget(vissza_gomb)
         vissza_sor.addStretch()
@@ -66,7 +87,7 @@ class KetReszletek(QWidget):
         self._cim_cimke.setObjectName('fo_cim')
         fo.addWidget(self._cim_cimke)
 
-        self._racs = QTableWidget()
+        self._racs = KattinthatoRacs()
         self._racs.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self._racs.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._racs.verticalHeader().setVisible(True)
@@ -140,6 +161,7 @@ class KetReszletek(QWidget):
             gomb.clicked.connect(
                 lambda _, v=vid, t=tid, s=sor, o=oszlop: self._teljesit_keres(v, t, s, o)
             )
+        gomb.setCursor(Qt.CursorShape.PointingHandCursor)
         return gomb
 
     def _cella_frissit(self, sor: int, oszlop: int) -> None:
