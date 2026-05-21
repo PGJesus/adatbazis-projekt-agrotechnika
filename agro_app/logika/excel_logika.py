@@ -352,6 +352,117 @@ def importal(
     )
 
 
+# ─── Fő exportáló függvény ────────────────────────────────────────────────────
+
+def exportal(mappa: Path | str, munkamenet: Session) -> None:
+    """Exportálja az adatbázis tartalmát a 8 Excel fájlba."""
+    mappa = Path(mappa)
+    mappa.mkdir(parents=True, exist_ok=True)
+
+    # ── Adatok betöltése ──────────────────────────────────────────────────────
+    gazdalkodok = munkamenet.query(Gazdalkodo).order_by(Gazdalkodo.nev).all()
+    gazd_by_gid: dict[int, Gazdalkodo] = {g.gid: g for g in gazdalkodok}
+
+    vallalasok_by_gid: dict[int, set[int]] = defaultdict(set)
+    for v in munkamenet.query(Vallalasok).all():
+        vallalasok_by_gid[v.gazdalkodo_gid].add(v.eloiras_azonosito)
+
+    ketek = munkamenet.query(Ket).order_by(Ket.ket_azonosito).all()
+    ket_by_kid: dict[int, Ket] = {k.kid: k for k in ketek}
+
+    tablak = (
+        munkamenet.query(Tablak)
+        .order_by(Tablak.ket_kid, Tablak.tablasorszam)
+        .all()
+    )
+
+    # (tablak_tid, eloiras_azonosito) → teljesules_datuma
+    teljesitesek_map: dict[tuple[int, int], date] = {}
+    for telj, eloiras_azon in (
+        munkamenet.query(Teljesitesek, Vallalasok.eloiras_azonosito)
+        .join(Vallalasok, Teljesitesek.vallalasok_vid == Vallalasok.vid)
+        .all()
+    ):
+        teljesitesek_map[(telj.tablak_tid, eloiras_azon)] = telj.teljesules_datuma
+
+    # ── Gazd_alapadatok.xlsx ──────────────────────────────────────────────────
+    pd.DataFrame([
+        {
+            'név':                  g.nev,
+            'Lakcím':               g.cim,
+            'telefonszám':          g.telefonszam,
+            'email':                g.email,
+            'támogatási azonosító': g.tamogatasi_azonosito,
+        }
+        for g in gazdalkodok
+    ]).to_excel(mappa / 'Gazd_alapadatok.xlsx', index=False, engine='openpyxl')
+
+    # ── Agrotechnika_vállalások.xlsx ──────────────────────────────────────────
+    pd.DataFrame([
+        {
+            'név':                          g.nev,
+            'támogatási azonosító':         g.tamogatasi_azonosito,
+            'istállótrágya kijuttatás 1':   'igen' if 1 in vallalasok_by_gid[g.gid] else 'nem',
+            'istállótrágya kijuttatás 2':   'igen' if 2 in vallalasok_by_gid[g.gid] else 'nem',
+            'melléktermék beforgatás':      'igen' if 3 in vallalasok_by_gid[g.gid] else 'nem',
+            'középmély lazítás':            'igen' if 4 in vallalasok_by_gid[g.gid] else 'nem',
+        }
+        for g in gazdalkodok
+    ]).to_excel(mappa / 'Agrotechnika_vállalások.xlsx', index=False, engine='openpyxl')
+
+    # ── KETEK.xlsx ────────────────────────────────────────────────────────────
+    pd.DataFrame([
+        {
+            'név':                  gazd_by_gid[k.gazdalkodo_gid].nev,
+            'támogatási azonosító': gazd_by_gid[k.gazdalkodo_gid].tamogatasi_azonosito,
+            'KET azonosító':        k.ket_azonosito,
+            'KET terület [ha]':     k.terulet_ha,
+        }
+        for k in ketek
+    ]).to_excel(mappa / 'KETEK.xlsx', index=False, engine='openpyxl')
+
+    # ── Táblák_YYYY.xlsx ──────────────────────────────────────────────────────
+    for ev in _TABLA_EVEK:
+        sorok = []
+        for t in tablak:
+            k = ket_by_kid[t.ket_kid]
+            g = gazd_by_gid[k.gazdalkodo_gid]
+
+            # Trágyázási dátum: az 1-es vagy 2-es feladat ebből az évből
+            tragy_dat = None
+            for eloiras in (1, 2):
+                d = teljesitesek_map.get((t.tid, eloiras))
+                if d is not None and d.year == ev:
+                    tragy_dat = d
+                    break
+
+            mel_dat = teljesitesek_map.get((t.tid, 3))
+            if mel_dat is not None and mel_dat.year != ev:
+                mel_dat = None
+
+            laz_dat = teljesitesek_map.get((t.tid, 4))
+            if laz_dat is not None and laz_dat.year != ev:
+                laz_dat = None
+
+            sorok.append({
+                'név':                            g.nev,
+                'támogatási azonosító':           g.tamogatasi_azonosito,
+                'táblasorszám':                   t.tablasorszam,
+                'tábla azonosító':                t.tablaazonosito,
+                'tábla terület [ha]':             t.terulet_ha,
+                'vetett kultúra':                 None,
+                'vetési idő':                     None,
+                'KET azonosító':                  k.ket_azonosito,
+                'istállótrágya kijuttatás dátum': tragy_dat,
+                'melléktermék beforgatás dátum':  mel_dat,
+                'középmély lazítás dátum':        laz_dat,
+            })
+
+        pd.DataFrame(sorok).to_excel(
+            mappa / f'Táblák_{ev}.xlsx', index=False, engine='openpyxl'
+        )
+
+
 # ─── Privát segédfüggvények ───────────────────────────────────────────────────
 
 def _excel_beolvas(ut: Path) -> tuple[str, pd.DataFrame]:

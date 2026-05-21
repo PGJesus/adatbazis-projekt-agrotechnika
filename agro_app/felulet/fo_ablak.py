@@ -10,11 +10,13 @@ from PyQt6.QtWidgets import (
     QButtonGroup,
     QCompleter,
     QDialog,
+    QFileDialog,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QSizePolicy,
     QStackedWidget,
@@ -133,7 +135,7 @@ class FoAblak(QMainWindow):
 
         export_gomb = QPushButton('Exportálás')
         export_gomb.setToolTip('Adatok exportálása Excel fájlokba')
-        export_gomb.clicked.connect(lambda: None)   # no-op
+        export_gomb.clicked.connect(self._export_megnyit)
         eszk.addWidget(export_gomb)
 
         eszk.addSeparator()
@@ -486,6 +488,29 @@ class FoAblak(QMainWindow):
         parbeszed = ExcelParbeszedablak(self._db, parent=self)
         if parbeszed.exec() == QDialog.DialogCode.Accepted:
             self._betolt()
+
+    # ── Export ────────────────────────────────────────────────────────────────
+
+    def _export_megnyit(self) -> None:
+        from pathlib import Path
+        from logika.excel_logika import exportal
+        mappa = QFileDialog.getExistingDirectory(
+            self, 'Exportálási mappa kiválasztása', str(Path.home())
+        )
+        if not mappa:
+            return
+        try:
+            exportal(mappa, self._db)
+        except Exception as e:
+            hiba = QMessageBox(self)
+            hiba.setWindowTitle('Export hiba')
+            hiba.setText(f'Az export során hiba lépett fel:\n{e}')
+            hiba.exec()
+            return
+        siker = QMessageBox(self)
+        siker.setWindowTitle('Export kész')
+        siker.setText(f'Az összes fájl sikeresen exportálva:\n{mappa}')
+        siker.exec()
 
     # ── Téma ─────────────────────────────────────────────────────────────────
 
