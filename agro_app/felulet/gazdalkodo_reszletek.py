@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QModelIndex, pyqtSignal
-from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -15,39 +15,14 @@ from PyQt6.QtWidgets import (
 )
 from sqlalchemy.orm import Session
 
+from felulet.jelveny import Jelveny
 from logika.gazdalkodo_logika import egy
 from logika.ket_logika import Allapot, allapot, haladas
 
 
-_ALLAPOT_SZOVEG: dict[Allapot, str] = {
-    Allapot.ZOLD:     'Zöld',
-    Allapot.SARGA:    'Sárga',
-    Allapot.PIROS:    'Piros',
-    Allapot.SZANKCIO: 'Szankció',
-    Allapot.KESZ:     'Kész',
-}
-
-_ALLAPOT_SZIN: dict[str, dict[Allapot, tuple[str, str]]] = {
-    'vilagos': {
-        Allapot.ZOLD:     ('#4A7C59', '#FFFFFF'),
-        Allapot.SARGA:    ('#D4A017', '#000000'),
-        Allapot.PIROS:    ('#C0392B', '#FFFFFF'),
-        Allapot.SZANKCIO: ('#6B1A1A', '#FFFFFF'),
-        Allapot.KESZ:     ('#4A7C59', '#FFFFFF'),
-    },
-    'sotet': {
-        Allapot.ZOLD:     ('#6BA77B', '#1A1A1A'),
-        Allapot.SARGA:    ('#E8B83C', '#1A1A1A'),
-        Allapot.PIROS:    ('#E74C3C', '#FFFFFF'),
-        Allapot.SZANKCIO: ('#A03030', '#FFFFFF'),
-        Allapot.KESZ:     ('#6BA77B', '#1A1A1A'),
-    },
-}
-
-
 class GazdalkodoReszletek(QWidget):
     vissza = pyqtSignal()
-    ket_megnyit = pyqtSignal(int)   # kid
+    ket_megnyit = pyqtSignal(int)
 
     def __init__(
         self,
@@ -67,8 +42,8 @@ class GazdalkodoReszletek(QWidget):
 
     def _init_ui(self) -> None:
         fo = QVBoxLayout(self)
-        fo.setContentsMargins(16, 12, 16, 12)
-        fo.setSpacing(12)
+        fo.setContentsMargins(24, 20, 24, 20)
+        fo.setSpacing(16)
 
         vissza_sor = QHBoxLayout()
         vissza_gomb = QPushButton('← Vissza')
@@ -80,9 +55,14 @@ class GazdalkodoReszletek(QWidget):
 
         fo.addWidget(self._adatkartya_felep())
 
-        ket_cimke = QLabel('KET-ek')
-        ket_cimke.setStyleSheet('font-weight: bold; font-size: 12pt;')
-        fo.addWidget(ket_cimke)
+        elvalaszto = QFrame()
+        elvalaszto.setFrameShape(QFrame.Shape.HLine)
+        elvalaszto.setObjectName('oldalsav_elvalaszto')
+        fo.addWidget(elvalaszto)
+
+        ket_cim = QLabel('KET-ek')
+        ket_cim.setObjectName('szekció_cim')
+        fo.addWidget(ket_cim)
 
         self._ket_tabla = QTableWidget()
         self._ket_tabla.setColumnCount(4)
@@ -97,28 +77,30 @@ class GazdalkodoReszletek(QWidget):
         self._ket_tabla.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._ket_tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._ket_tabla.verticalHeader().setVisible(False)
-        self._ket_tabla.setAlternatingRowColors(True)
-        self._ket_tabla.doubleClicked.connect(self._ket_duplakattintva)
+        self._ket_tabla.setAlternatingRowColors(False)
+        self._ket_tabla.setShowGrid(False)
+        self._ket_tabla.verticalHeader().setDefaultSectionSize(44)
+        self._ket_tabla.clicked.connect(self._ket_kattintva)
 
         fo.addWidget(self._ket_tabla, stretch=1)
 
     def _adatkartya_felep(self) -> QWidget:
         keret = QWidget()
-        elrendezas = QVBoxLayout(keret)
-        elrendezas.setContentsMargins(0, 0, 0, 8)
-        elrendezas.setSpacing(4)
+        el = QVBoxLayout(keret)
+        el.setContentsMargins(0, 0, 0, 8)
+        el.setSpacing(4)
 
-        self._nev_cimke   = QLabel()
-        self._nev_cimke.setObjectName('fo_cim')
+        self._nev_cimke = QLabel()
+        self._nev_cimke.setObjectName('oldal_cim')
         self._cim_cimke   = QLabel()
         self._tel_cimke   = QLabel()
         self._email_cimke = QLabel()
         self._ta_cimke    = QLabel()
-        self._ta_cimke.setObjectName('szoveg2')
+        self._ta_cimke.setObjectName('szoveg1')
 
         for w in (self._nev_cimke, self._cim_cimke, self._tel_cimke,
                   self._email_cimke, self._ta_cimke):
-            elrendezas.addWidget(w)
+            el.addWidget(w)
 
         return keret
 
@@ -135,8 +117,6 @@ class GazdalkodoReszletek(QWidget):
         self._email_cimke.setText(f'E-mail: {gazd.email or "—"}')
         self._ta_cimke.setText(f'Támogatási azonosító: {gazd.tamogatasi_azonosito}')
 
-        szint = _ALLAPOT_SZIN.get(self._tema, _ALLAPOT_SZIN['vilagos'])
-
         self._ket_tabla.setSortingEnabled(False)
         self._ket_tabla.setRowCount(0)
 
@@ -146,6 +126,7 @@ class GazdalkodoReszletek(QWidget):
 
             sor = self._ket_tabla.rowCount()
             self._ket_tabla.insertRow(sor)
+            self._ket_tabla.setRowHeight(sor, 44)
 
             azon_elem = QTableWidgetItem(str(k.ket_azonosito))
             azon_elem.setData(Qt.ItemDataRole.UserRole, k.kid)
@@ -156,35 +137,38 @@ class GazdalkodoReszletek(QWidget):
 
             ter_elem = QTableWidgetItem(f'{k.terulet_ha:.4f}')
             ter_elem.setTextAlignment(
-                Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
             self._ket_tabla.setItem(sor, 1, ter_elem)
 
             hal_szoveg = f'{keszult}/{osszesen}' if osszesen > 0 else '—'
             hal_elem = QTableWidgetItem(hal_szoveg)
             hal_elem.setTextAlignment(
-                Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
             self._ket_tabla.setItem(sor, 2, hal_elem)
 
-            bg_szin, fg_szin = szint.get(all_enum, ('#888888', '#FFFFFF'))
-            all_elem = QTableWidgetItem(_ALLAPOT_SZOVEG[all_enum])
-            all_elem.setBackground(QBrush(QColor(bg_szin)))
-            all_elem.setForeground(QBrush(QColor(fg_szin)))
-            all_elem.setTextAlignment(
-                Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
-            )
-            all_elem.setFlags(all_elem.flags() & ~Qt.ItemFlag.ItemIsSelectable)
-            self._ket_tabla.setItem(sor, 3, all_elem)
+            jelveny = Jelveny(all_enum)
+            self._ket_tabla.setCellWidget(sor, 3, self._jelveny_kozepre(jelveny))
 
         self._ket_tabla.setSortingEnabled(True)
+
+    def _jelveny_kozepre(self, jelveny: Jelveny) -> QWidget:
+        tartaly = QWidget()
+        tartaly.setStyleSheet('background: transparent;')
+        el = QHBoxLayout(tartaly)
+        el.setContentsMargins(8, 0, 8, 0)
+        el.addStretch()
+        el.addWidget(jelveny)
+        el.addStretch()
+        return tartaly
 
     def refresh(self) -> None:
         self._betolt()
 
     # ── Navigáció ─────────────────────────────────────────────────────────────
 
-    def _ket_duplakattintva(self, index: QModelIndex) -> None:
+    def _ket_kattintva(self, index: QModelIndex) -> None:
         elem = self._ket_tabla.item(index.row(), 0)
         if elem is None:
             return
