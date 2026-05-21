@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QSizePolicy,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QToolBar,
@@ -87,6 +88,10 @@ class FoAblak(QMainWindow):
         self._kereses_szoveg: str = ''
         self._szuro_allapot: str = 'mind'        # 'mind' | 'teljesitett' | 'nem_teljesitett'
 
+        # Navigációs widgetek
+        self._gazd_widget = None
+        self._ket_widget  = None
+
         self._init_ui()
         self._betolt()
 
@@ -123,7 +128,7 @@ class FoAblak(QMainWindow):
 
         import_gomb = QPushButton('Importálás')
         import_gomb.setToolTip('Adatok importálása Excel fájlokból')
-        import_gomb.clicked.connect(lambda: None)   # no-op
+        import_gomb.clicked.connect(self._import_megnyit)
         eszk.addWidget(import_gomb)
 
         export_gomb = QPushButton('Exportálás')
@@ -139,9 +144,13 @@ class FoAblak(QMainWindow):
         eszk.addWidget(beall_gomb)
 
     def _kozponti_widget_felep(self) -> None:
-        kozponti = QWidget()
-        self.setCentralWidget(kozponti)
-        fo = QVBoxLayout(kozponti)
+        self._stack = QStackedWidget()
+        self.setCentralWidget(self._stack)
+
+        dashboard = QWidget()
+        self._stack.addWidget(dashboard)   # index 0 — mindig itt marad
+
+        fo = QVBoxLayout(dashboard)
         fo.setContentsMargins(16, 12, 16, 12)
         fo.setSpacing(10)
 
@@ -423,7 +432,60 @@ class FoAblak(QMainWindow):
         if nev_elem is None:
             return
         gid = nev_elem.data(Qt.ItemDataRole.UserRole)
-        print(f'Gazdálkodó megnyitva: gid={gid}')
+        if gid is not None:
+            self._gazd_megnyit(gid)
+
+    # ── Navigáció ─────────────────────────────────────────────────────────────
+
+    def _gazd_megnyit(self, gid: int) -> None:
+        from felulet.gazdalkodo_reszletek import GazdalkodoReszletek
+        if self._gazd_widget is not None:
+            self._stack.removeWidget(self._gazd_widget)
+            self._gazd_widget.deleteLater()
+        self._gazd_widget = GazdalkodoReszletek(self._db, gid, self._tema)
+        self._gazd_widget.vissza.connect(self._vissza_dashboardra)
+        self._gazd_widget.ket_megnyit.connect(self._ket_megnyit)
+        self._stack.addWidget(self._gazd_widget)
+        self._stack.setCurrentWidget(self._gazd_widget)
+
+    def _ket_megnyit(self, kid: int) -> None:
+        from felulet.ket_reszletek import KetReszletek
+        if self._ket_widget is not None:
+            self._stack.removeWidget(self._ket_widget)
+            self._ket_widget.deleteLater()
+        self._ket_widget = KetReszletek(self._db, kid, self._tema)
+        self._ket_widget.vissza.connect(self._vissza_gazd_reszletekre)
+        self._stack.addWidget(self._ket_widget)
+        self._stack.setCurrentWidget(self._ket_widget)
+
+    def _vissza_dashboardra(self) -> None:
+        if self._ket_widget is not None:
+            self._stack.removeWidget(self._ket_widget)
+            self._ket_widget.deleteLater()
+            self._ket_widget = None
+        if self._gazd_widget is not None:
+            self._stack.removeWidget(self._gazd_widget)
+            self._gazd_widget.deleteLater()
+            self._gazd_widget = None
+        self._stack.setCurrentIndex(0)
+        self._betolt()
+
+    def _vissza_gazd_reszletekre(self) -> None:
+        if self._ket_widget is not None:
+            self._stack.removeWidget(self._ket_widget)
+            self._ket_widget.deleteLater()
+            self._ket_widget = None
+        if self._gazd_widget is not None:
+            self._stack.setCurrentWidget(self._gazd_widget)
+            self._gazd_widget.refresh()
+
+    # ── Import ────────────────────────────────────────────────────────────────
+
+    def _import_megnyit(self) -> None:
+        from felulet.excel_parbeszedablak import ExcelParbeszedablak
+        parbeszed = ExcelParbeszedablak(self._db, parent=self)
+        if parbeszed.exec() == QDialog.DialogCode.Accepted:
+            self._betolt()
 
     # ── Téma ─────────────────────────────────────────────────────────────────
 

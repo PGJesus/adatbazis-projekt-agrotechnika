@@ -4,7 +4,8 @@
       "PowerShell(Get-ChildItem -Recurse \"c:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\adatbazis-projekt-agrotechnika\\\\agro_app\" | ForEach-Object { $_.FullName.Replace\\(\"c:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\adatbazis-projekt-agrotechnika\\\\\", \"\"\\) })",
       "Bash(python -)",
       "Bash(python -c ' *)",
-      "Bash(python -c \"import sys; sys.stdout.buffer.write\\(sys.stdin.buffer.read\\(\\)\\)\")"
+      "Bash(python -c \"import sys; sys.stdout.buffer.write\\(sys.stdin.buffer.read\\(\\)\\)\")",
+      "Bash(find c:/Users/user/Documents/GitHub/adatbazis-projekt-agrotechnika/agro_app -name \"*.py\" -not -path \"*/.venv/*\" -not -path \"*\\\\\\\\.venv\\\\\\\\*\")"
     ]
   }
 }
