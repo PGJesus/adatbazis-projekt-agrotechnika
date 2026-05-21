@@ -4,7 +4,9 @@ from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from logika.beallitasok import beallitasok_betolt, _ALKALMAZAS_NEV
 from felulet.beallitasok_ablak import BeallitasokAblak
-from adatbazis.kapcsolat import kapcsolat_inicializal
+from felulet.fo_ablak import FoAblak
+from felulet.stilus import betoltes
+from adatbazis.kapcsolat import kapcsolat_inicializal, munkamenet
 
 
 def main() -> None:
@@ -22,7 +24,6 @@ def main() -> None:
 
     try:
         kapcsolat_inicializal(konfig)
-        print('Kapcsolódás sikeres')
     except Exception as kiv:
         QMessageBox.critical(
             None,
@@ -31,7 +32,16 @@ def main() -> None:
         )
         sys.exit(1)
 
-    sys.exit(0)
+    tema = konfig.get('megjelenes', 'tema', fallback='vilagos')
+    alkalmazas.setStyleSheet(betoltes(tema))
+
+    db = munkamenet()
+    fo_ablak = FoAblak(db, konfig)
+    fo_ablak.show()
+
+    kod = alkalmazas.exec()
+    db.close()
+    sys.exit(kod)
 
 
 if __name__ == '__main__':
